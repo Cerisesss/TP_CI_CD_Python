@@ -26,8 +26,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
-      - run: pytest tests/unit
+      - name: Installer dépendances
+        run: pip install -r requirements.txt
+      - name: Lancer tests unitaires
+        run: |
+          set PYTHONPATH=.
+          pytest tests/unit
 
   integration-tests:
     name: Tests integration
@@ -38,8 +42,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
-      - run: pytest tests/integration
+      - name: Installer dépendances
+        run: pip install -r requirements.txt
+
+      - name: Lancer tests intégration
+        run: |
+          set PYTHONPATH=.
+          pytest tests/integration
   
   performance-tests:
     name: Tests de performance
@@ -50,8 +59,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
-      - run: pytest tests/performance --benchmark-only
+      - name: Installer dépendances
+        run: pip install -r requirements.txt pytest-benchmark
+
+      - name: Benchmarks légers
+        run: |
+          set PYTHONPATH=.
+          pytest tests/performance --benchmark-only
 
   # validate:
   #   name: Validation docker-compose
