@@ -1,0 +1,13 @@
+services:
+  api:
+    build: .
+    image: tp-cicd-python
+    ports:
+      - "8000:8000"
+    environment:
+      APP_DB_PATH: /data/app.db
+    volumes:
+      - api_data:/data
+
+volumes:
+  api_data:

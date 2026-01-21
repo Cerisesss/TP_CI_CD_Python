@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY app ./app
+
+ENV APP_DB_PATH=/data/app.db
+
+VOLUME /data
+
+EXPOSE 8000
+
+CMD ["python", "-m", "app.api"]

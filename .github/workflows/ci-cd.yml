@@ -1,0 +1,128 @@
+name: Python CI/CD Pipeline
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check .
+
+  unit-tests:
+    name: Tests unitaires
+    needs: lint
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/unit
+
+  integration-tests:
+    name: Tests integration
+    needs: unit-tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/integration
+  
+  performance-tests:
+    name: Tests de performance
+    needs: integration-tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/performance --benchmark-only
+
+  # validate:
+  #   name: Validation docker-compose
+  #   runs-on: windows-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Vérifier docker-compose
+  #       run: docker compose config
+
+  generate:
+    name: Génération Kubernetes avec Kompose
+    needs: performance-tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer Kompose
+        run: curl -L https://github.com/kubernetes/kompose/releases/download/v1.32.0/kompose-windows-amd64.exe -o kompose.exe
+
+      - name: Convertir docker-compose en k8s
+        run: |
+          mkdir k8s
+          .\kompose.exe convert -o k8s\
+
+      - name: Sauvegarder yaml générés
+        uses: actions/upload-artifact@v4
+        with:
+          name: k8s-yaml
+          path: k8s/
+
+  package:
+    name: Packaging final
+    needs: generate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: k8s-yaml
+          path: k8s
+
+      - name: Préparer arborescence finale
+        run: |
+          mkdir DingCelive
+          copy k8s\*.yaml DingCelive\
+
+      - name: Création archive
+        run: powershell Compress-Archive -Path DingCelive -DestinationPath DingCelivePython.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kube-zip
+          path: DingCelivePython.zip
+
+  deploy:
+    name: Upload FTP
+    needs: package
+    runs-on: windows-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: kube-zip
+          path: ./
+
+      - name: Upload sur FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./
+          server-dir: /RenduDevopsKube/
+          dangerous-clean-slate: false
+          state-name: "none"
