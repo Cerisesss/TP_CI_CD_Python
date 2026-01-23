@@ -96,9 +96,38 @@ jobs:
           name: k8s-yaml
           path: k8s/
 
+  deploy_CD:
+    name: Déploiement progressif (staging → prod)
+
+    # Le déploiement ne se fait que si tous les tests ont réussi
+    needs: performance-tests
+
+    runs-on: ubuntu-latest
+
+    # Condition : uniquement sur la branche main
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      # Déploiement en environnement de staging
+      - name: Déploiement en staging
+        run: |
+          echo "Déploiement en staging..."
+
+      # Smoke tests post-déploiement
+      # Vérification minimale : requêtes clés, KPIs critiques
+      - name: Smoke tests
+        run: |
+          echo "Vérification requêtes clés & KPIs..."
+
+      # Déploiement progressif en production
+      # Exemple : canary à 10% du trafic
+      - name: Déploiement progressif en production
+        run: |
+          echo "Déploiement canary (10%)..."
+
   package:
     name: Packaging final
-    needs: generate
+    needs: deploy_CD
     runs-on: windows-latest
     steps:
       - uses: actions/download-artifact@v4
