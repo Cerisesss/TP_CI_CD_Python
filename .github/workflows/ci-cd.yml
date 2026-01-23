@@ -75,27 +75,6 @@ jobs:
   #     - name: Vérifier docker-compose
   #       run: docker compose config
 
-  generate:
-    name: Génération Kubernetes avec Kompose
-    needs: performance-tests
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Installer Kompose
-        run: curl -L https://github.com/kubernetes/kompose/releases/download/v1.32.0/kompose-windows-amd64.exe -o kompose.exe
-
-      - name: Convertir docker-compose en k8s
-        run: |
-          mkdir k8s
-          .\kompose.exe convert -o k8s\
-
-      - name: Sauvegarder yaml générés
-        uses: actions/upload-artifact@v4
-        with:
-          name: k8s-yaml
-          path: k8s/
-
   deploy_CD:
     name: Déploiement progressif (staging → prod)
 
@@ -125,9 +104,30 @@ jobs:
         run: |
           echo "Déploiement canary (10%)..."
 
+  generate:
+    name: Génération Kubernetes avec Kompose
+    needs: deploy_CD
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer Kompose
+        run: curl -L https://github.com/kubernetes/kompose/releases/download/v1.32.0/kompose-windows-amd64.exe -o kompose.exe
+
+      - name: Convertir docker-compose en k8s
+        run: |
+          mkdir k8s
+          .\kompose.exe convert -o k8s\
+
+      - name: Sauvegarder yaml générés
+        uses: actions/upload-artifact@v4
+        with:
+          name: k8s-yaml
+          path: k8s/
+
   package:
     name: Packaging final
-    needs: deploy_CD
+    needs: generate
     runs-on: windows-latest
     steps:
       - uses: actions/download-artifact@v4
